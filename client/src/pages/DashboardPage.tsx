@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const fetchProjects = async () => {
     try {
       const response = await api.get('/projects');
-      setProjects(response.projects);
+      setProjects(Array.isArray(response) ? response : response.projects || []);
     } catch (error) {
       console.error('Failed to fetch projects:', error);
     } finally {

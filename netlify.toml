@@ -10,7 +10,7 @@
 # Redirect API calls to the Netlify function
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/api/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200
 
 # Handle client-side routing for SPA

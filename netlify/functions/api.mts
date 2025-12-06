@@ -312,7 +312,13 @@ app.get('/api/projects/:id', authenticate, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    res.json(project);
+    // Add daysUntilDeadline to each phase
+    const phasesWithDays = project.phases.map(phase => ({
+      ...phase,
+      daysUntilDeadline: getBusinessDaysUntil(phase.deadline)
+    }));
+
+    res.json({ ...project, phases: phasesWithDays });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch project' });
   }

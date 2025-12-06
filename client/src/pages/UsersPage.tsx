@@ -18,7 +18,7 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       const response = await api.get('/users');
-      setUsers(response.users);
+      setUsers(Array.isArray(response) ? response : response.users || []);
     } catch (error) {
       console.error('Failed to fetch users:', error);
     } finally {

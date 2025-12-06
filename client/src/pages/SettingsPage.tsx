@@ -34,12 +34,13 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await api.get('/settings');
-      setSettings(response.settings);
+      const response = await api.get("/settings");
+      const settingsData = response.settings || response;
+      setSettings(settingsData);
 
       const data: Record<string, number> = {};
       SETTINGS_FIELDS.forEach(({ key }) => {
-        data[key] = response.settings[key] as number;
+        data[key] = settingsData[key] as number;
       });
       setFormData(data);
     } catch (error) {

@@ -36,7 +36,7 @@ export default function ProjectDetailPage() {
   const fetchProject = async () => {
     try {
       const response = await api.get(`/projects/${id}`);
-      setProject(response.project);
+      setProject(response.project || response);
     } catch (error) {
       console.error('Failed to fetch project:', error);
       navigate('/');

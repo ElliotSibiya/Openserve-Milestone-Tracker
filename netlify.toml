@@ -1,0 +1,30 @@
+[build]
+  base = "."
+  command = "cd netlify/functions && npm install && cd ../../client && npm install && npm run build"
+  publish = "client/dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Redirect API calls to the Netlify function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/api/:splat"
+  status = 200
+
+# Handle client-side routing for SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["@prisma/client"]
+  included_files = ["netlify/functions/node_modules/.prisma/**"]
+
+# Environment variables to set in Netlify dashboard:
+# DATABASE_URL - Your Supabase connection string (session pooler, port 6543)
+# DIRECT_URL - Your Supabase direct connection (port 5432) 
+# JWT_SECRET - A secure random string for JWT signing

@@ -378,6 +378,86 @@ app.post('/api/projects', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+app.patch('/api/projects/:id', authenticate, requireRole('admin', 'superadmin'), async (req: AuthRequest, res) => {
+  try {
+    const { siteSurveyDate, phases } = req.body;
+    const projectId = req.params.id;
+
+    // Update site survey date
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { siteSurveyDate: new Date(siteSurveyDate) }
+    });
+
+    // Build allowed days from phases
+    const allowedDays: Record<string, number> = {};
+    const customDeadlines: Record<string, Date> = {};
+
+    for (const phase of phases) {
+      allowedDays[phase.phaseName] = phase.allowedDays;
+      if (phase.deadline) {
+        customDeadlines[phase.phaseName] = new Date(phase.deadline);
+      }
+    }
+
+    // Calculate new deadlines from site survey date
+    const deadlines = calculatePhaseDeadlines(new Date(siteSurveyDate), allowedDays);
+
+    // Apply custom deadlines if provided (super admin feature)
+    for (const [phaseName, deadline] of Object.entries(customDeadlines)) {
+      deadlines[phaseName] = deadline;
+    }
+
+    // Update each phase
+    for (const phase of phases) {
+      await prisma.projectPhase.updateMany({
+        where: { projectId, phaseName: phase.phaseName },
+        data: {
+          allowedDays: phase.allowedDays,
+          deadline: deadlines[phase.phaseName]
+        }
+      });
+    }
+
+    // Update mirror phases (FQA mirrors Build, COM mirrors RFA)
+    const buildPhase = phases.find((p: any) => p.phaseName === 'build');
+    if (buildPhase) {
+      await prisma.projectPhase.updateMany({
+        where: { projectId, phaseName: 'fqa' },
+        data: { allowedDays: 0, deadline: deadlines['build'] }
+      });
+    }
+
+    const rfaPhase = phases.find((p: any) => p.phaseName === 'rfa');
+    if (rfaPhase) {
+      await prisma.projectPhase.updateMany({
+        where: { projectId, phaseName: 'com' },
+        data: { allowedDays: 0, deadline: deadlines['rfa'] }
+      });
+    }
+
+    // Fetch updated project
+    const updatedProject = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        phases: { orderBy: { deadline: 'asc' } },
+        createdByUser: { select: { name: true } }
+      }
+    });
+
+    // Add daysUntilDeadline
+    const phasesWithDays = updatedProject!.phases.map(phase => ({
+      ...phase,
+      daysUntilDeadline: getBusinessDaysUntil(phase.deadline)
+    }));
+
+    res.json({ ...updatedProject, phases: phasesWithDays });
+  } catch (error) {
+    console.error('Update project error:', error);
+    res.status(500).json({ error: 'Failed to update project' });
+  }
+});
+
 app.delete('/api/projects/:id', authenticate, requireRole('superadmin'), async (req: AuthRequest, res) => {
   try {
     await prisma.project.delete({ where: { id: req.params.id } });
